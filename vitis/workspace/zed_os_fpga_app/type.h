@@ -30,8 +30,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define  BLOCK  3
 #define  ZOMBIE 4
 #define  PAUSE  5
-#define  printf  kprintf
-#define  kprintf xil_printf
+#define  printf  xil_printf
 
 typedef struct semaphore{
   int value;
