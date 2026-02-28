@@ -10,7 +10,6 @@
 
 #define  SSIZE 1024
 #define printf xil_printf
-#define kprintf xil_printf
 
 void stub_printf( const char8 *ctrl1, ...)
 {
@@ -599,6 +598,7 @@ int consumer() {
 // Entry point
 int main()
 {
+	fbuf_init();
 	//TODO refactor this code
 	int Status;
 
@@ -624,7 +624,7 @@ int main()
 		return Status;
 	}
 
-
+   kprintf("Welcome to Wanix in ARM\n");
    uart_init();
    XUartPs_Recv(&Uart_Ps, u_buffer, 1);
    printf("Welcome to WANIX in Arm\n");
