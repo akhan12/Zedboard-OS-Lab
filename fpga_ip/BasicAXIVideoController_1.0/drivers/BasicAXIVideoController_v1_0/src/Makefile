@@ -9,9 +9,9 @@ RELEASEDIR=../../../lib
 INCLUDEDIR=../../../include
 INCLUDES=-I./. -I${INCLUDEDIR}
 
-INCLUDEFILES=*.h
-LIBSOURCES=*.c
-OUTS = *.o
+INCLUDEFILES := $(wildcard *.h)
+LIBSOURCES := $(wildcard *.c)
+OUTS        := $(patsubst %.c,%.o,$(LIBSOURCES))
 
 libs:
 	echo "Compiling BasicAXIVideoController..."
