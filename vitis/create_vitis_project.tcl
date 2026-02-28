@@ -3,7 +3,8 @@
 #
 # Creates a Vitis workspace with:
 #   1. A platform project from the exported XSA
-#   2. A standalone application project with sources from vitis/src/
+#   2. zed_vga_test  — C++ VGA demo app (sources in workspace/zed_vga_test/src/)
+#   3. zed_os_fpga_app — C OS project (sources in workspace/zed_os_fpga_app/src/)
 #
 # Usage (from XSCT console or batch mode):
 #   xsct /path/to/Zedboard-OS-Lab/vitis/create_vitis_project.tcl
@@ -20,7 +21,6 @@ set origin_dir [file normalize "$script_dir/.."]
 
 set xsa_file  [file normalize "$origin_dir/vitis/zed_os_fpga.xsa"]
 set workspace [file normalize "$origin_dir/vitis/workspace"]
-set src_dir   [file normalize "$workspace/zed_os_fpga_app/src"]
 
 # Parse arguments
 set skip_platform 0
@@ -49,32 +49,52 @@ if { $skip_platform } {
     platform write
     platform active zed_os_fpga_platform
     platform generate
+
+    # Replace boot.S with patched version that forces SVC mode before _start.
+    # The top-level standalone Makefile compiles src/boot.S (not the gcc/ subfolder).
+    set boot_src  [file normalize "$origin_dir/vitis/patches/boot.S"]
+    set boot_dest [file normalize "$workspace/zed_os_fpga_platform/ps7_cortexa9_0/standalone_domain/bsp/ps7_cortexa9_0/libsrc/standalone_v7_7/src/boot.S"]
+    puts "INFO: Replacing boot.S with patched SVC mode version..."
+    file copy -force $boot_src $boot_dest
+    puts "INFO: boot.S replaced successfully"
 }
 
-# Step 2: Create application project
-# Domain name is 'standalone_domain' (created by platform create above)
-# -lang c++ selects the C++ template 'Empty Application (C++)' and configures g++ as compiler.
-puts "INFO: Creating application project..."
-if { [catch {app list} app_list] == 0 && [lsearch $app_list "zed_os_fpga_app"] >= 0 } {
-    puts "INFO: Removing existing application project..."
-    app remove zed_os_fpga_app
+# Step 2: Create zed_vga_test — C++ VGA demo application
+# Sources live in workspace/zed_vga_test/src/{app,drv,include}/ and are tracked in git.
+puts "INFO: Creating zed_vga_test application project..."
+if { [catch {app list} app_list] == 0 && [lsearch $app_list "zed_vga_test"] >= 0 } {
+    puts "INFO: Removing existing zed_vga_test project..."
+    app remove zed_vga_test
 }
-app create -name zed_os_fpga_app \
+app create -name zed_vga_test \
     -platform zed_os_fpga_platform \
     -domain standalone_domain \
     -lang c++ \
     -template {Empty Application (C++)}
 
-# Step 3: Set include paths for app/, drv/, and include/ subdirectories.
-# Sources live directly in workspace/zed_os_fpga_app/src/ and are tracked in git.
-app config -name zed_os_fpga_app include-path {${workspace_loc:/${ProjName}/src/app}}
-app config -name zed_os_fpga_app include-path {${workspace_loc:/${ProjName}/src/drv}}
-app config -name zed_os_fpga_app include-path {${workspace_loc:/${ProjName}/src/include}}
-puts "INFO: Sources are in $src_dir (tracked in git, no import needed)"
+# Set include paths for app/, drv/, and include/ subdirectories
+app config -name zed_vga_test include-path {${workspace_loc:/${ProjName}/src/app}}
+app config -name zed_vga_test include-path {${workspace_loc:/${ProjName}/src/drv}}
+app config -name zed_vga_test include-path {${workspace_loc:/${ProjName}/src/include}}
+puts "INFO: zed_vga_test sources are in $workspace/zed_vga_test/src/ (tracked in git)"
 
-# Step 4: Build via system project
+# Step 3: Create zed_os_fpga_app — C OS application
+# Sources live flat in workspace/zed_os_fpga_app/src/ and are tracked in git.
+puts "INFO: Creating zed_os_fpga_app application project..."
+if { [catch {app list} app_list2] == 0 && [lsearch $app_list2 "zed_os_fpga_app"] >= 0 } {
+    puts "INFO: Removing existing zed_os_fpga_app project..."
+    app remove zed_os_fpga_app
+}
+app create -name zed_os_fpga_app \
+    -platform zed_os_fpga_platform \
+    -domain standalone_domain \
+    -template {Empty Application(C)}
+
+puts "INFO: zed_os_fpga_app sources are in $workspace/zed_os_fpga_app/src/ (tracked in git)"
+
+# Step 4: Build all projects via system project
 puts "INFO: Building..."
 sysproj build -all
 
-puts "INFO: Vitis project created at $workspace"
-puts "INFO: Open Vitis and set workspace to $workspace to view the project."
+puts "INFO: Vitis workspace created at $workspace"
+puts "INFO: Open Vitis and set workspace to $workspace to view the projects."

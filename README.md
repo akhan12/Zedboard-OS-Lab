@@ -1,6 +1,6 @@
 # Zedboard-OS-Lab
 
-Vivado 2022.1 project for a Zedboard VGA demo using a custom AXI VGA controller IP. The repository contains all source files needed to recreate the project from scratch.
+Zedboard FPGA lab: custom AXI IP peripherals integrated with a bare-metal ARM OS playground. The repository contains all source files needed to recreate the project from scratch.
 
 ## Repository Structure
 
