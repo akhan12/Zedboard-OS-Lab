@@ -15,35 +15,32 @@ concurrency:
 jobs:
   vivado-build:
     name: Vivado — Synthesis, Implementation & XSA Export
-    runs-on: self-hosted   # must match the label on your registered runner
+    runs-on: self-hosted
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Run build.tcl (synth → impl → bitstream → XSA)
-        shell: bash
+        shell: cmd
         run: |
-          # Adjust path to match your Vivado 2022.1 installation
-          VIVADO="C:/Xilinx/Vivado/2022.1/bin/vivado.bat"
-          "$VIVADO" -mode batch -source build.tcl \
-            -log vivado_build.log -journal vivado_build.jou
+          "C:\Xilinx\Vivado\2022.1\bin\vivado.bat" -mode batch -source build.tcl -log vivado_build.log -journal vivado_build.jou
         timeout-minutes: 90
 
       - name: Verify XSA was produced
-        shell: bash
+        shell: powershell
         run: |
-          if [ ! -f "vitis/zed_os_fpga.xsa" ]; then
-            echo "ERROR: vitis/zed_os_fpga.xsa not found — Vivado build failed"
+          if (-not (Test-Path "vitis\zed_os_fpga.xsa")) {
+            Write-Error "vitis\zed_os_fpga.xsa not found — Vivado build failed"
             exit 1
-          fi
-          echo "XSA found: $(du -h vitis/zed_os_fpga.xsa)"
+          }
+          Write-Host "XSA found: $((Get-Item 'vitis\zed_os_fpga.xsa').Length) bytes"
 
       - name: Upload XSA artifact
         uses: actions/upload-artifact@v4
         with:
           name: zed_os_fpga_xsa
-          path: vitis/zed_os_fpga.xsa
+          path: vitis\zed_os_fpga.xsa
           retention-days: 7
 
       - name: Upload Vivado logs on failure
@@ -59,7 +56,7 @@ jobs:
   vitis-build:
     name: Vitis — Platform + zed_vga_test + zed_os_fpga_app
     runs-on: self-hosted
-    needs: vivado-build   # only run if Vivado succeeded
+    needs: vivado-build
 
     steps:
       - name: Checkout
@@ -69,47 +66,40 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: zed_os_fpga_xsa
-          path: vitis/
+          path: vitis\
 
       - name: Run create_vitis_project.tcl
-        shell: bash
+        shell: cmd
         run: |
-          XSCT="C:/Xilinx/Vitis/2022.1/bin/xsct.bat"
-          "$XSCT" vitis/create_vitis_project.tcl \
-            > vitis_build.log 2>&1
-          cat vitis_build.log
+          "C:\Xilinx\Vitis\2022.1\bin\xsct.bat" vitis\create_vitis_project.tcl > vitis_build.log 2>&1
+          type vitis_build.log
         timeout-minutes: 60
 
       - name: Verify ELF files were produced
-        shell: bash
+        shell: powershell
         run: |
-          VGA_ELF="vitis/workspace/zed_vga_test/Debug/zed_vga_test.elf"
-          OS_ELF="vitis/workspace/zed_os_fpga_app/Debug/zed_os_fpga_app.elf"
-          FAIL=0
-
-          if [ ! -f "$VGA_ELF" ]; then
-            echo "ERROR: $VGA_ELF not found"
-            FAIL=1
-          else
-            echo "OK: $(du -h $VGA_ELF)"
-          fi
-
-          if [ ! -f "$OS_ELF" ]; then
-            echo "ERROR: $OS_ELF not found"
-            FAIL=1
-          else
-            echo "OK: $(du -h $OS_ELF)"
-          fi
-
-          exit $FAIL
+          $fail = $false
+          $elfs = @(
+            "vitis\workspace\zed_vga_test\Debug\zed_vga_test.elf",
+            "vitis\workspace\zed_os_fpga_app\Debug\zed_os_fpga_app.elf"
+          )
+          foreach ($elf in $elfs) {
+            if (Test-Path $elf) {
+              Write-Host "OK: $elf ($((Get-Item $elf).Length) bytes)"
+            } else {
+              Write-Error "MISSING: $elf"
+              $fail = $true
+            }
+          }
+          if ($fail) { exit 1 }
 
       - name: Upload ELF artifacts
         uses: actions/upload-artifact@v4
         with:
           name: elf-binaries
           path: |
-            vitis/workspace/zed_vga_test/Debug/zed_vga_test.elf
-            vitis/workspace/zed_os_fpga_app/Debug/zed_os_fpga_app.elf
+            vitis\workspace\zed_vga_test\Debug\zed_vga_test.elf
+            vitis\workspace\zed_os_fpga_app\Debug\zed_os_fpga_app.elf
           retention-days: 7
 
       - name: Upload Vitis logs on failure
@@ -122,19 +112,19 @@ jobs:
 
       - name: Clean workspace for next run
         if: always()
-        shell: bash
+        shell: powershell
         run: |
           # Remove generated artifacts so next run starts clean.
           # Source files tracked in git are left untouched.
-          rm -f  vitis/zed_os_fpga.xsa
-          rm -rf vitis/workspace/zed_os_fpga_platform
-          rm -rf vitis/workspace/zed_vga_test_system
-          rm -rf vitis/workspace/zed_vga_test/Debug
-          rm -rf vitis/workspace/zed_vga_test/Release
-          rm -rf vitis/workspace/zed_vga_test/_ide
-          rm -rf vitis/workspace/zed_os_fpga_app_system
-          rm -rf vitis/workspace/zed_os_fpga_app/Debug
-          rm -rf vitis/workspace/zed_os_fpga_app/Release
-          rm -rf vitis/workspace/zed_os_fpga_app/_ide
-          rm -rf vitis/workspace/.metadata
-          rm -rf zed_os_fpga
+          Remove-Item -Force  -ErrorAction SilentlyContinue "vitis\zed_os_fpga.xsa"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_os_fpga_platform"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_vga_test_system"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_vga_test\Debug"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_vga_test\Release"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_vga_test\_ide"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_os_fpga_app_system"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_os_fpga_app\Debug"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_os_fpga_app\Release"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_os_fpga_app\_ide"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\.metadata"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "zed_os_fpga"
