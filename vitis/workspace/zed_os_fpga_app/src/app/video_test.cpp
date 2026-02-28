@@ -14,9 +14,9 @@
 
 #include <stdint.h>
 #include <unistd.h>       // sleep(), usleep()
-#include "../drv/chu_io_map.h"
-#include "../drv/chu_io_rw.h"
-#include "../drv/vga_core.h"
+#include "chu_io_map.h"
+#include "chu_io_rw.h"
+#include "vga_core.h"
 
 // -------------------------------------------------------------------
 // 9-bit color helpers (format: RRRGGGGBBB -> bits [8:6]=R [5:3]=G [2:0]=B)

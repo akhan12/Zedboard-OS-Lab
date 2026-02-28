@@ -20,7 +20,7 @@ set origin_dir [file normalize "$script_dir/.."]
 
 set xsa_file  [file normalize "$origin_dir/vitis/zed_os_fpga.xsa"]
 set workspace [file normalize "$origin_dir/vitis/workspace"]
-set src_dir   [file normalize "$origin_dir/vitis/src"]
+set src_dir   [file normalize "$workspace/zed_os_fpga_app/src"]
 
 # Parse arguments
 set skip_platform 0
@@ -53,8 +53,7 @@ if { $skip_platform } {
 
 # Step 2: Create application project
 # Domain name is 'standalone_domain' (created by platform create above)
-# Template is 'Empty Application(C)' - Vitis 2022.1 has no separate C++ template;
-# .cpp source files are compiled as C++ regardless of the template used.
+# -lang c++ selects the C++ template 'Empty Application (C++)' and configures g++ as compiler.
 puts "INFO: Creating application project..."
 if { [catch {app list} app_list] == 0 && [lsearch $app_list "zed_os_fpga_app"] >= 0 } {
     puts "INFO: Removing existing application project..."
@@ -63,18 +62,19 @@ if { [catch {app list} app_list] == 0 && [lsearch $app_list "zed_os_fpga_app"] >
 app create -name zed_os_fpga_app \
     -platform zed_os_fpga_platform \
     -domain standalone_domain \
-    -template {Empty Application(C)}
+    -lang c++ \
+    -template {Empty Application (C++)}
 
-# Step 3: Add sources from vitis/src (app and driver files)
-puts "INFO: Adding source files..."
-foreach src_file [glob -nocomplain "$src_dir/app/*" "$src_dir/drv/*"] {
-    importsources -name zed_os_fpga_app -path $src_file
-    puts "  Added: [file tail $src_file]"
-}
+# Step 3: Set include paths for app/, drv/, and include/ subdirectories.
+# Sources live directly in workspace/zed_os_fpga_app/src/ and are tracked in git.
+app config -name zed_os_fpga_app include-path {${workspace_loc:/${ProjName}/src/app}}
+app config -name zed_os_fpga_app include-path {${workspace_loc:/${ProjName}/src/drv}}
+app config -name zed_os_fpga_app include-path {${workspace_loc:/${ProjName}/src/include}}
+puts "INFO: Sources are in $src_dir (tracked in git, no import needed)"
 
-# Step 4: Build the application
-puts "INFO: Building application..."
-app build -name zed_os_fpga_app
+# Step 4: Build via system project
+puts "INFO: Building..."
+sysproj build -all
 
 puts "INFO: Vitis project created at $workspace"
 puts "INFO: Open Vitis and set workspace to $workspace to view the project."

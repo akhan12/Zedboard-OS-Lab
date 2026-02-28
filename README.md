@@ -22,9 +22,16 @@ Zedboard-OS-Lab/
 
 **Step 1: Build the FPGA project and export XSA**
 
-In a terminal:
+In a terminal (ensure Vivado is on PATH, or use the full path to `vivado.bat`):
 ```bash
+# If Vivado is not on PATH, source the settings script first (Git Bash / WSL):
+source C:/Xilinx/Vivado/2022.1/settings64.sh
+
 vivado -mode batch -source /path/to/Zedboard-OS-Lab/build.tcl
+```
+On Windows, using the `.bat` launcher directly is more reliable:
+```bash
+C:/Xilinx/Vivado/2022.1/bin/vivado.bat -mode batch -source /path/to/Zedboard-OS-Lab/build.tcl
 ```
 Or from the Vivado TCL console:
 ```tcl

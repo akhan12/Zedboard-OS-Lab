@@ -1,6 +1,27 @@
 # Vivado generated project directory
 zed_os_fpga/
 
-# Vitis generated workspace and exported XSA
-vitis/workspace/
+# Vitis generated files - ignore everything in workspace except tracked sources
 vitis/*.xsa
+vitis/.Xil/
+vitis/.xil/
+vitis/workspace/zed_os_fpga_platform/
+vitis/workspace/zed_os_fpga_app_system/
+vitis/workspace/.metadata/
+vitis/workspace/.analytics
+vitis/workspace/zed_os_fpga_app/Debug/
+vitis/workspace/zed_os_fpga_app/Release/
+vitis/workspace/zed_os_fpga_app/.cproject
+vitis/workspace/zed_os_fpga_app/.project
+vitis/workspace/zed_os_fpga_app/.settings/
+vitis/workspace/zed_os_fpga_app/_ide/
+vitis/workspace/zed_os_fpga_app/zed_os_fpga_app.prj
+vitis/workspace/zed_os_fpga_app/src/README.txt
+vitis/workspace/zed_os_fpga_app/src/Xilinx.spec
+vitis/workspace/zed_os_fpga_app/src/lscript.ld
+vitis/workspace/RemoteSystemsTempFiles/
+vitis/Packages/
+
+# Vivado/Vitis log and journal files
+*.jou
+*.log
