@@ -18,13 +18,44 @@ Zedboard-OS-Lab/
 
 ## Recreating the Project
 
-1. Clone the repository
-2. Open Vivado 2022.1
-3. In the Vivado TCL console, source the script:
-   ```tcl
-   source /path/to/Zedboard-OS-Lab/create_project.tcl
-   ```
-   This will create the `zed_os_fpga/` project directory in the repo root.
+### Option A — Full automated build (Vivado + Vitis)
+
+**Step 1: Build the FPGA project and export XSA**
+
+In a terminal:
+```bash
+vivado -mode batch -source /path/to/Zedboard-OS-Lab/build.tcl
+```
+Or from the Vivado TCL console:
+```tcl
+source /path/to/Zedboard-OS-Lab/build.tcl
+```
+This will:
+- Create the Vivado project (`zed_os_fpga/`)
+- Run synthesis, implementation, and bitstream generation
+- Export `vitis/zed_os_fpga.xsa` (with bitstream included)
+
+**Step 2: Create the Vitis platform and application project**
+
+In a terminal:
+```bash
+xsct /path/to/Zedboard-OS-Lab/vitis/create_vitis_project.tcl
+```
+This will:
+- Create a Vitis workspace at `vitis/workspace/`
+- Create a standalone platform project from the XSA
+- Create a C++ application project with all sources from `vitis/src/`
+- Build the application
+
+Then open Vitis and set the workspace to `vitis/workspace/` to view, modify, or run/debug.
+
+### Option B — Vivado project only (no build)
+
+From the Vivado TCL console:
+```tcl
+source /path/to/Zedboard-OS-Lab/create_project.tcl
+```
+This creates the project only — synthesis and implementation must be run manually.
 
 ## Updating create_project.tcl After Vivado Changes
 

@@ -1,2 +1,6 @@
 # Vivado generated project directory
 zed_os_fpga/
+
+# Vitis generated workspace and exported XSA
+vitis/workspace/
+vitis/*.xsa
