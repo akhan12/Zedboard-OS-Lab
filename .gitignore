@@ -6,21 +6,36 @@ vitis/*.xsa
 vitis/.Xil/
 vitis/.xil/
 vitis/workspace/zed_os_fpga_platform/
-vitis/workspace/zed_os_fpga_app_system/
 vitis/workspace/.metadata/
 vitis/workspace/.analytics
+vitis/workspace/RemoteSystemsTempFiles/
+vitis/Packages/
+
+# zed_vga_test app (C++ VGA demo) — generated files only
+vitis/workspace/zed_vga_test_system/
+vitis/workspace/zed_vga_test/Debug/
+vitis/workspace/zed_vga_test/Release/
+vitis/workspace/zed_vga_test/.cproject
+vitis/workspace/zed_vga_test/.project
+vitis/workspace/zed_vga_test/.settings/
+vitis/workspace/zed_vga_test/_ide/
+vitis/workspace/zed_vga_test/*.prj
+vitis/workspace/zed_vga_test/src/README.txt
+vitis/workspace/zed_vga_test/src/Xilinx.spec
+vitis/workspace/zed_vga_test/src/lscript.ld
+
+# zed_os_fpga_app (C OS project) — generated files only
+vitis/workspace/zed_os_fpga_app_system/
 vitis/workspace/zed_os_fpga_app/Debug/
 vitis/workspace/zed_os_fpga_app/Release/
 vitis/workspace/zed_os_fpga_app/.cproject
 vitis/workspace/zed_os_fpga_app/.project
 vitis/workspace/zed_os_fpga_app/.settings/
 vitis/workspace/zed_os_fpga_app/_ide/
-vitis/workspace/zed_os_fpga_app/zed_os_fpga_app.prj
+vitis/workspace/zed_os_fpga_app/*.prj
 vitis/workspace/zed_os_fpga_app/src/README.txt
 vitis/workspace/zed_os_fpga_app/src/Xilinx.spec
 vitis/workspace/zed_os_fpga_app/src/lscript.ld
-vitis/workspace/RemoteSystemsTempFiles/
-vitis/Packages/
 
 # Vivado/Vitis log and journal files
 *.jou
