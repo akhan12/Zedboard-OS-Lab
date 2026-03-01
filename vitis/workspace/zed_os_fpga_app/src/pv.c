@@ -15,17 +15,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ********************************************************************/
 #include "type.h"
 
-
-
 extern PROC *running;
 extern PROC *readyQueue;
 
-int P(struct semaphore *s)
-{
+int P(struct semaphore *s) {
   int SR = int_off();
   lock();
   s->value--;
-  if (s->value < 0){
+  if (s->value < 0) {
     running->status = BLOCK;
     enqueue(&s->queue, running);
     tswitch();
@@ -33,12 +30,11 @@ int P(struct semaphore *s)
   unlock();
 }
 
-int V(struct semaphore *s)
-{
+int V(struct semaphore *s) {
   PROC *p;
   int SR = int_off();
   s->value++;
-  if (s->value <= 0){
+  if (s->value <= 0) {
     p = dequeue(&s->queue);
     p->status = READY;
     enqueue(&readyQueue, p);
@@ -46,25 +42,22 @@ int V(struct semaphore *s)
   int_on(SR);
 }
 
-int P_int(struct semaphore *s)
-{
+int P_int(struct semaphore *s) {
 
   s->value--;
-  if (s->value < 0){
+  if (s->value < 0) {
     running->status = BLOCK;
     enqueue(&s->queue, running);
     tswitch();
   }
 }
 
-int V_int(struct semaphore *s)
-{
+int V_int(struct semaphore *s) {
   PROC *p;
   s->value++;
-  if (s->value <= 0){
+  if (s->value <= 0) {
     p = dequeue(&s->queue);
     p->status = READY;
     enqueue(&readyQueue, p);
   }
-
 }

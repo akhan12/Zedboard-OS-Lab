@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define  BLOCK  3
 #define  ZOMBIE 4
 #define  printf  kprintf
- 
+
 typedef struct proc{
   struct proc *next;
   int    *ksp;
@@ -48,18 +48,17 @@ PROC proc[NPROC], *running, *freeList, *readyQueue, *sleepList, *pauseList;
 int procsize = sizeof(PROC);
 int body();
 
-int init()
-{
-  int i, j; 
+int init() {
+  int i, j;
   PROC *p;
   kprintf("kernel_init()\n");
-  for (i=0; i<NPROC; i++){
+  for (i = 0; i < NPROC; i++) {
     p = &proc[i];
     p->pid = i;
     p->status = READY;
-     p->next = p + 1;
+    p->next = p + 1;
   }
-  proc[NPROC-1].next = 0;
+  proc[NPROC - 1].next = 0;
   freeList = &proc[0];
   sleepList = 0;
   readyQueue = 0;
@@ -69,47 +68,42 @@ int init()
   kprintf("running = %d\n", running->pid);
 }
 
-int scheduler()
-{
-  //kprintf("proc %d in scheduler\n", running->pid);
-  if (running->status==READY)
-     enqueue(&readyQueue, running);
-  //printQ(readyQueue);
+int scheduler() {
+  // kprintf("proc %d in scheduler\n", running->pid);
+  if (running->status == READY)
+    enqueue(&readyQueue, running);
+  // printQ(readyQueue);
   running = dequeue(&readyQueue);
-  //kprintf("next running = %d\n", running->pid);
-}  
+  // kprintf("next running = %d\n", running->pid);
+}
 
-int ksleep(int event)
-{
-  //printf("proc %d ksleep on %x\n", running->pid, event);  
+int ksleep(int event) {
+  // printf("proc %d ksleep on %x\n", running->pid, event);
   running->event = event;
   running->status = SLEEP;
   enqueue(&sleepList, running);
-  //printf("sleepList = "); printQ(sleepList);
+  // printf("sleepList = "); printQ(sleepList);
   tswitch();
 }
 
-int kwakeup(int event)
-{
-  PROC *p, *tmp=0;
-  while((p = dequeue(&sleepList))!=0){
-    if (p->event==event){
-      //printf("kwakeup %d\n", p->pid);
+int kwakeup(int event) {
+  PROC *p, *tmp = 0;
+  while ((p = dequeue(&sleepList)) != 0) {
+    if (p->event == event) {
+      // printf("kwakeup %d\n", p->pid);
       p->status = READY;
       enqueue(&readyQueue, p);
-    }
-    else{
+    } else {
       enqueue(&tmp, p);
     }
   }
   sleepList = tmp;
 }
 
-PROC *kfork(int func, int priority)
-{
+PROC *kfork(int func, int priority) {
   int i;
   PROC *p = getproc(&freeList);
-  if (p==0){
+  if (p == 0) {
     kprintf("kfork failed\n");
     return (PROC *)0;
   }
@@ -118,32 +112,31 @@ PROC *kfork(int func, int priority)
   p->parent = running;
   p->status = READY;
   p->priority = priority;
-  
+
   // set kstack to resume to body
   // stack = r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r14
   //         1  2  3  4  5  6  7  8  9  10 11  12  13  14
-  for (i=1; i<15; i++)
-    p->kstack[SSIZE-i] = 0;
-  p->kstack[SSIZE-1] = (int)func;  // in dec reg=address ORDER !!!
-  p->ksp = &(p->kstack[SSIZE-14]);
- 
+  for (i = 1; i < 15; i++)
+    p->kstack[SSIZE - i] = 0;
+  p->kstack[SSIZE - 1] = (int)func; // in dec reg=address ORDER !!!
+  p->ksp = &(p->kstack[SSIZE - 14]);
+
   enqueue(&readyQueue, p);
-  //printQ(readyQueue);
-  kprintf("proc %d kforked a child %d\n", running->pid, p->pid); 
+  // printQ(readyQueue);
+  kprintf("proc %d kforked a child %d\n", running->pid, p->pid);
   return p;
 }
 
 // Insert a process at the end of a list
-int enterList(PROC **list, PROC *p)
-{
+int enterList(PROC **list, PROC *p) {
   PROC *q = *list;
   lock();
-  if (q==0)
-    *list = p;  // Insert as first if list is empty
-  else{
-    while(q->next)
-      q = q->next; 
-    q->next = p;  // Insert at the end
+  if (q == 0)
+    *list = p; // Insert as first if list is empty
+  else {
+    while (q->next)
+      q = q->next;
+    q->next = p; // Insert at the end
   }
   p->next = 0;
   unlock();

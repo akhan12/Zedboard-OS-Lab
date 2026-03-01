@@ -19,49 +19,51 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // defines.h file
 
-#include "xil_types.h"
-#include "xil_printf.h"
 #include "xil_exception.h"
-#define  SSIZE 1024
+#include "xil_printf.h"
+#include "xil_types.h"
+#define SSIZE 1024
 
-#define  FREE   0
-#define  READY  1
-#define  SLEEP  2
-#define  BLOCK  3
-#define  ZOMBIE 4
-#define  PAUSE  5
-#define  printf  kprintf
+#define FREE 0
+#define READY 1
+#define SLEEP 2
+#define BLOCK 3
+#define ZOMBIE 4
+#define PAUSE 5
+#define printf kprintf
 
-#define BLUE   0
-#define GREEN  1
-#define RED    2
-#define CYAN   3
+#define BLUE 0
+#define GREEN 1
+#define RED 2
+#define CYAN 3
 #define YELLOW 4
 #define PURPLE 5
-#define WHITE  6
+#define WHITE 6
 
-typedef struct semaphore{
+#define printf kprintf
+
+typedef struct semaphore {
   int value;
   struct proc *queue;
-}SEMAPHORE;
+} SEMAPHORE;
 
 // to support priority inversion, each PROC must have a pointer to a MUTEX or
 // SEMAPHORE, which points back to the PROC.
-typedef struct proc{
+typedef struct proc {
   struct proc *next;
-  int    *ksp;
-  int    status;
-  int    pid;
+  int *ksp;
+  int status;
+  int pid;
 
-  int    priority;
- 
-  int    ppid;
+  int priority;
+
+  int ppid;
   struct proc *parent;
-  int    event;
-  int    exitCode;
-  int    pause; 
-  int    kstack[SSIZE];
-}PROC;
+  int event;
+  int exitCode;
+  int pause;
+  int kstack[SSIZE];
+} PROC;
 
 extern PROC *running, *freeList, *readyQueue, *sleepList, *pauseList;
 
