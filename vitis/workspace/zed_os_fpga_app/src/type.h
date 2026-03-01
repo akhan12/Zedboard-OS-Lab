@@ -30,7 +30,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define  BLOCK  3
 #define  ZOMBIE 4
 #define  PAUSE  5
-#define  printf  xil_printf
+#define  printf  kprintf
+
+#define BLUE   0
+#define GREEN  1
+#define RED    2
+#define CYAN   3
+#define YELLOW 4
+#define PURPLE 5
+#define WHITE  6
 
 typedef struct semaphore{
   int value;

@@ -9,7 +9,7 @@
 #include "type.h"
 
 #define  SSIZE 1024
-#define printf xil_printf
+#define printf kprintf
 
 void stub_printf( const char8 *ctrl1, ...)
 {
@@ -303,10 +303,6 @@ int SetupTicker(void)
 
 extern PROC *getproc();
 
-
-char kgetc(){
-	return (char)XUartPs_RecvByte(STDOUT_BASEADDRESS);
-}
 //int kprintf(char *fmt, ...);
 
 // Pause a process for t seconds using the timer
@@ -595,6 +591,8 @@ int consumer() {
 
   }
 }
+
+extern int color;
 // Entry point
 int main()
 {
@@ -647,6 +645,7 @@ int main()
    uint32_t count = 0;
    uint32_t recv;
    recv = XUartPs_Recv(&Uart_Ps, uart_buffer.inbuf, 1u);
+   color = YELLOW;
    printf("enter line from UART0 to activate producer/consumer tasks\n");
    unlock();
    while(1){
