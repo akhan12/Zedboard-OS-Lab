@@ -1,10 +1,10 @@
 /*********************************************************************
  * @file chu_io_map.h
  *
- * @brief address map for video AXI IP
+ * @brief address map for AXI peripherals
  *
- * Update VIDEO_AXI_BASE to match the base address assigned in the
- * Vivado Address Editor for the video_axi_v1_0 peripheral.
+ * Update each BASE address to match the Vivado Address Editor
+ * assignment for that peripheral.
  *********************************************************************/
 
 #ifndef _CHU_IO_MAP_H_INCLUDED
@@ -38,5 +38,11 @@
 // video_addr[20]=1 -> axi_awaddr[22]=1 -> offset 0x400000 from base
 // -------------------------------------------------------------------
 #define VIDEO_FRAME_BASE  ((uint32_t)(VIDEO_AXI_BASE + 0x400000))
+
+// -------------------------------------------------------------------
+// PS/2 AXI IP base address
+// Set to match Vivado Address Editor assignment for ps2_axi_v1_0
+// -------------------------------------------------------------------
+#define PS2_AXI_BASE  0x40800000
 
 #endif // _CHU_IO_MAP_H_INCLUDED
