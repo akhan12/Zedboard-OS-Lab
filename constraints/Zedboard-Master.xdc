@@ -84,8 +84,8 @@
 # ----------------------------------------------------------------------------
 # JA Pmod - Bank 13 
 # ---------------------------------------------------------------------------- 
-#set_property PACKAGE_PIN Y11  [get_ports {JA1}];  # "JA1"
-#set_property PACKAGE_PIN AA11 [get_ports {JA2}];  # "JA2"
+set_property PACKAGE_PIN Y11  [get_ports {ps2c}];  # "JA1"
+set_property PACKAGE_PIN AA11 [get_ports {ps2d}];  # "JA2"
 #set_property PACKAGE_PIN Y10  [get_ports {JA3}];  # "JA3"
 #set_property PACKAGE_PIN AA9  [get_ports {JA4}];  # "JA4"
 #set_property PACKAGE_PIN AB11 [get_ports {JA7}];  # "JA7"

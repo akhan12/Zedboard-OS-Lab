@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 // AXI PS/2 core base address (match your Vivado Address Editor assignment)
-#define PS2_AXI_BASE  0x40010000
+#define PS2_AXI_BASE  0x40800000
 
 // Register word offsets
 #define PS2_RD_DATA_REG  0   // read data/status
