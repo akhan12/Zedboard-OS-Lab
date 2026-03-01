@@ -41,3 +41,6 @@ vitis/workspace/zed_os_fpga_app/src/lscript.ld
 # Vivado/Vitis log and journal files
 *.jou
 *.log
+
+# Random
+vitis/*.bit

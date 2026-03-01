@@ -20,9 +20,9 @@
 #define ps2_read(offset)        (*(volatile uint32_t *)(PS2_AXI_BASE + 4*(offset)))
 #define ps2_write(offset, data) (*(volatile uint32_t *)(PS2_AXI_BASE + 4*(offset)) = (uint32_t)(data))
 
-int  ps2_init(void);
-void kbd_handler(void);
-int  kgetc(void);
-int  kgets(char *s);
+int  ps2_init(void);   // reset device, confirm keyboard; returns 1=ok, -1=fail
+int  ps2_poll(void);   // non-blocking: returns ASCII char, 0 (non-printable), or -1 (FIFO empty)
+int  kgetc(void);      // blocking poll — spins until a key is pressed
+int  kgets(char *s);   // read a line (terminated by Enter), returns length
 
 #endif // PS2_CORE_H

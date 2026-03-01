@@ -1,10 +1,16 @@
 // ps2_core.c
 // PS/2 keyboard driver for Zedboard custom AXI PS/2 IP.
+// Polling mode — IP has no interrupt output.
 // API mirrors kbd.c (K.C. Wang EOS) for drop-in OS integration.
-// Hardware: AXI PS/2 RX FIFO at PS2_AXI_BASE.
 
 #include "ps2_core.h"
-#include "type.h"
+
+// Spin-delay: ~1 ms per count at 666 MHz (2 cycles/iter, ~333k iters/ms)
+static void ps2_delay_ms(int ms)
+{
+    volatile int i;
+    for (i = 0; i < ms * 333000; i++);
+}
 
 // Scan code set 2: scan code -> ASCII (lowercase)
 static const unsigned char ltab[128] = {
@@ -34,16 +40,6 @@ static const unsigned char utab[128] = {
 #define RSHIFT  0x59
 #define LCTRL   0x14
 
-#define KBD_BUFSIZE 128
-
-typedef volatile struct kbd {
-    char buf[KBD_BUFSIZE];
-    int  head, tail;
-    struct semaphore data, kline;
-} KBD;
-
-static volatile KBD kbd;
-
 static int shifted = 0;
 static int release = 0;
 static int control = 0;
@@ -54,101 +50,87 @@ static int ps2_rx_empty(void)
     return (int)((ps2_read(PS2_RD_DATA_REG) & PS2_RX_EMPT) >> 8);
 }
 
-static int ps2_rx_byte(void)
+static unsigned char ps2_rx_byte(void)
 {
-    uint32_t data;
-    if (ps2_rx_empty())
-        return -1;
-    data = ps2_read(PS2_RD_DATA_REG) & PS2_RX_DATA;
+    unsigned char data = (unsigned char)(ps2_read(PS2_RD_DATA_REG) & PS2_RX_DATA);
     ps2_write(PS2_RM_RD_REG, 0);  // pop FIFO
-    return (int)data;
+    return data;
 }
 
+// ps2_init: reset the PS/2 device and confirm it is a keyboard.
+// Mirrors Ps2Core::init() from the C++ driver.
+// Returns  1 = keyboard detected (success)
+//         -1 = no ACK or BAT failed
 int ps2_init(void)
 {
-    KBD *kp = (KBD *)&kbd;
+    int packet;
 
-    // Flush any stale bytes in RX FIFO
+    // Flush stale bytes
     while (!ps2_rx_empty())
         ps2_rx_byte();
-
-    kp->head = kp->tail = 0;
-    kp->data.value = 0;  kp->data.queue = 0;
-    kp->kline.value = 0; kp->kline.queue = 0;
 
     shifted = 0;
     release = 0;
     control = 0;
 
-    return 0;
+    // Send reset command
+    ps2_write(PS2_WR_DATA_REG, 0xff);
+    ps2_delay_ms(200);  // give device time to complete self-test
+
+    // Expect 0xfa (ACK) then 0xaa (BAT pass)
+    if (ps2_rx_byte() != 0xfa)
+        return -1;
+    if (ps2_rx_byte() != 0xaa)
+        return -1;
+
+    // If an extra 0x00 follows the device is a mouse — unexpected here
+    packet = ps2_rx_empty() ? -1 : (int)ps2_rx_byte();
+    if (packet == 0x00)
+        return -1;  // mouse connected, not a keyboard
+
+    return 1;  // keyboard confirmed
 }
 
-// kbd_handler: call this from your interrupt dispatcher when the PS/2 IRQ fires.
-// Mirrors kbd_handler2() from kbd.c (scan code set 2).
-void kbd_handler(void)
+// ps2_poll: read one scan code from the FIFO and decode it into a char.
+// Returns the ASCII character, 0 if no printable key yet, or -1 if FIFO empty.
+int ps2_poll(void)
 {
     unsigned char scode, c;
-    KBD *kp = (KBD *)&kbd;
 
     if (ps2_rx_empty())
-        return;
+        return -1;
 
-    scode = (unsigned char)ps2_rx_byte();
+    scode = ps2_rx_byte();
 
-    if (scode == 0xF0) {        // break code prefix — next byte is the released key
+    if (scode == 0xF0) {        // break code prefix
         release = 1;
-        return;
+        return 0;
     }
 
     if (release) {
-        if (scode == LSHIFT || scode == RSHIFT)
-            shifted = 0;
-        if (scode == LCTRL)
-            control = 0;
+        if (scode == LSHIFT || scode == RSHIFT) shifted = 0;
+        if (scode == LCTRL)                     control = 0;
         release = 0;
-        return;
+        return 0;
     }
 
-    // Make codes for modifier keys
-    if (scode == LSHIFT || scode == RSHIFT) { shifted = 1; return; }
-    if (scode == LCTRL)                      { control = 1; return; }
+    if (scode == LSHIFT || scode == RSHIFT) { shifted = 1; return 0; }
+    if (scode == LCTRL)                      { control = 1; return 0; }
 
-    // Control-C
-    if (control && scode == 0x21) {
-        kprintf("Control-C\n");
-        control = 0;
-        return;
-    }
-
-    // Control-D
-    if (control && scode == 0x23) {
-        c = 0x04;
-        kp->buf[kp->head++] = c;
-        kp->head %= KBD_BUFSIZE;
-        V(&kp->data);
-        return;
-    }
+    if (control && scode == 0x21) { control = 0; return 0x03; } // Ctrl-C (ETX)
+    if (control && scode == 0x23) { return 0x04; }              // Ctrl-D (EOT)
 
     c = shifted ? utab[scode] : ltab[scode];
-    if (c == 0)
-        return;
-
-    kp->buf[kp->head++] = c;
-    kp->head %= KBD_BUFSIZE;
-
-    V(&kp->data);
-    if (c == '\r')
-        V(&kp->kline);
+    return (int)c;   // 0 if not a printable key
 }
 
+// kgetc: block (spin) until a printable key is available, return its ASCII value.
 int kgetc(void)
 {
-    char c;
-    KBD *kp = (KBD *)&kbd;
-
-    P(&kp->data);
-    c = kp->buf[kp->tail++];
-    kp->tail %= KBD_BUFSIZE;
+    int c;
+    do {
+        c = ps2_poll();
+    } while (c <= 0);   // spin on empty FIFO (-1) or non-printable make code (0)
     return c;
 }
 

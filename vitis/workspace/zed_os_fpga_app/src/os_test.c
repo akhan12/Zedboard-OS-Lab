@@ -593,6 +593,7 @@ int consumer() {
 }
 
 extern int color;
+extern void kbd_task();
 // Entry point
 int main()
 {
@@ -641,6 +642,7 @@ int main()
    kfork((int)consumer,   2);
    kfork((int)producer,   3);
    kfork((int)consumer,   3);
+   kfork((int)kbd_task,   1);
    printQ(readyQueue);
    uint32_t count = 0;
    uint32_t recv;
