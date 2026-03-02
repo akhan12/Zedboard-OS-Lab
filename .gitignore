@@ -3,7 +3,6 @@ zed_os_fpga/
 ip_repo/
 
 # Vitis generated files - ignore everything in workspace except tracked sources
-vitis/*.xsa
 vitis/.Xil/
 vitis/.xil/
 vitis/workspace/zed_os_fpga_platform/

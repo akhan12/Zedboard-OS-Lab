@@ -13,6 +13,12 @@ static unsigned char *font;
 static int row, col;
 int color; // global, set by caller before drawing (BLUE/GREEN/RED/etc.)
 
+// Character cell shadow buffer: tracks what is displayed on screen.
+// Used by scroll() to avoid reading back from write-only AXI framebuffer.
+#define ROWS 25
+#define COLS 80
+static char cbuf[ROWS][COLS];
+
 // Pixel color table indexed by color constants
 static unsigned int color_table[] = {
     0x00FF0000, // BLUE   (00BBGGRR format)
@@ -35,6 +41,10 @@ int fbuf_init(void) {
   // Clear screen: write black to every pixel
   for (x = 0; x < HMAX * VMAX; x++)
     fb_write(x, 0x00000000);
+
+  // Clear character shadow buffer
+  for (x = 0; x < ROWS * COLS; x++)
+    ((char *)cbuf)[x] = 0;
 
   return 0;
 }
@@ -75,16 +85,24 @@ static void undchar(unsigned char c, int x, int y) {
 }
 
 static void scroll(void) {
-  int i;
-  for (i = 0; i < HMAX * VMAX - HMAX * 16; i++)
-    fb_write(
-        i, *(volatile unsigned int *)(VIDEO_FRAME_BASE + 4 * (i + HMAX * 16)));
-  // blank the last row
-  for (i = HMAX * VMAX - HMAX * 16; i < HMAX * VMAX; i++)
-    fb_write(i, 0x00000000);
+  int r, c;
+  // Shift character shadow up one row
+  for (r = 0; r < ROWS - 1; r++)
+    for (c = 0; c < COLS; c++)
+      cbuf[r][c] = cbuf[r + 1][c];
+  // Clear last row in shadow
+  for (c = 0; c < COLS; c++)
+    cbuf[ROWS - 1][c] = 0;
+  // Redraw all rows from shadow buffer
+  for (r = 0; r < ROWS; r++)
+    for (c = 0; c < COLS; c++)
+      dchar(cbuf[r][c], c * 8, r * 16);
 }
 
-static void kpchar(char c, int ro, int co) { dchar(c, co * 8, ro * 16); }
+static void kpchar(char c, int ro, int co) {
+  cbuf[ro][co] = c;
+  dchar(c, co * 8, ro * 16);
+}
 
 static void unkpchar(char c, int ro, int co) { undchar(c, co * 8, ro * 16); }
 
@@ -92,6 +110,7 @@ static void erasechar(void) {
   int r, bit;
   int x = col * 8;
   int y = row * 16;
+  cbuf[row][col] = 0;
   for (r = 0; r < 16; r++)
     for (bit = 0; bit < 8; bit++)
       clrpix(x + bit, y + r);
