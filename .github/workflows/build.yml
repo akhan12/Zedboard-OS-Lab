@@ -14,10 +14,8 @@ concurrency:
 
 jobs:
   build:
-    name: Build — Vivado (if PL changed) + Vitis
+    name: Build - Vivado (if PL changed) + Vitis
     runs-on: self-hosted
-    needs: check-pl-changes
-    if: needs.check-pl-changes.outputs.pl_changed == 'True'
 
     steps:
       - name: Checkout
@@ -51,10 +49,10 @@ jobs:
           echo "pl_changed=$pl_changed" >> $env:GITHUB_OUTPUT
 
       # ---------------------------------------------------------------
-      # Vivado — only when PL-side files changed.
+      # Vivado - only when PL-side files changed.
       # build.tcl writes vitis/zed_os_fpga.xsa directly in the workspace.
       # ---------------------------------------------------------------
-      - name: Vivado — Synthesis, Implementation & XSA Export
+      - name: Vivado - Synthesis, Implementation & XSA Export
         if: steps.pl_check.outputs.pl_changed == 'True'
         shell: cmd
         run: |
@@ -78,15 +76,15 @@ jobs:
         shell: powershell
         run: |
           if (-not (Test-Path "vitis\zed_os_fpga.xsa")) {
-            Write-Error "vitis\zed_os_fpga.xsa not found — commit an XSA or add a PL-side change to trigger a rebuild"
+            Write-Error "vitis\zed_os_fpga.xsa not found - commit an XSA or add a PL-side change to trigger a rebuild"
             exit 1
           }
           Write-Host "Using XSA: $((Get-Item 'vitis\zed_os_fpga.xsa').Length) bytes"
 
       # ---------------------------------------------------------------
-      # Vitis — always runs
+      # Vitis - always runs
       # ---------------------------------------------------------------
-      - name: Vitis — Platform + zed_vga_test + zed_os_fpga_app
+      - name: Vitis - Platform + zed_vga_test + zed_os_fpga_app
         shell: cmd
         run: |
           "C:\Xilinx\Vitis\2022.1\bin\xsct.bat" vitis\create_vitis_project.tcl > vitis_build.log 2>&1
@@ -132,7 +130,6 @@ jobs:
         if: always()
         shell: powershell
         run: |
-          Remove-Item -Force  -ErrorAction SilentlyContinue "vitis\zed_os_fpga.xsa"
           Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_os_fpga_platform"
           Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_vga_test_system"
           Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_vga_test\Debug"
