@@ -13,9 +13,57 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ---------------------------------------------------------------
+  # Detect whether PL-side files changed so we know whether to
+  # rebuild Vivado or reuse the committed vitis/zed_os_fpga.xsa.
+  # ---------------------------------------------------------------
+  check-pl-changes:
+    name: Detect PL-side changes
+    runs-on: self-hosted
+    outputs:
+      pl_changed: ${{ steps.diff.outputs.pl_changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need history to diff against base
+
+      - name: Check for PL-side file changes
+        id: diff
+        shell: powershell
+        run: |
+          # On a PR compare HEAD against the base branch.
+          # On a push to main compare HEAD against its parent.
+          if ("${{ github.event_name }}" -eq "pull_request") {
+            $base = "origin/${{ github.base_ref }}"
+          } else {
+            $base = "${{ github.event.before }}"
+          }
+          $changed = git diff --name-only $base HEAD
+          Write-Host "Changed files:`n$changed"
+          $pl_patterns = @("fpga_ip/", "constraints/", "build.tcl", "create_project.tcl")
+          $pl_changed = $false
+          foreach ($file in $changed) {
+            foreach ($pattern in $pl_patterns) {
+              if ($file -like "*$pattern*") {
+                $pl_changed = $true
+                break
+              }
+            }
+            if ($pl_changed) { break }
+          }
+          Write-Host "pl_changed=$pl_changed"
+          echo "pl_changed=$pl_changed" >> $env:GITHUB_OUTPUT
+
+  # ---------------------------------------------------------------
+  # Vivado — only runs when PL-side files changed.
+  # Exports vitis/zed_os_fpga.xsa and uploads it as an artifact.
+  # ---------------------------------------------------------------
   vivado-build:
     name: Vivado — Synthesis, Implementation & XSA Export
     runs-on: self-hosted
+    needs: check-pl-changes
+    if: needs.check-pl-changes.outputs.pl_changed == 'True'
 
     steps:
       - name: Checkout
@@ -53,20 +101,36 @@ jobs:
             vivado_build.jou
           retention-days: 7
 
+  # ---------------------------------------------------------------
+  # Vitis — always runs.
+  # Uses the freshly built XSA if Vivado ran, otherwise falls back
+  # to the committed vitis/zed_os_fpga.xsa already in the repo.
+  # ---------------------------------------------------------------
   vitis-build:
     name: Vitis — Platform + zed_vga_test + zed_os_fpga_app
     runs-on: self-hosted
-    needs: vivado-build
+    needs: [check-pl-changes, vivado-build]
+    if: always() && !failure() && !cancelled()
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download XSA from Vivado job
+      - name: Download XSA from Vivado job (if PL was rebuilt)
+        if: needs.check-pl-changes.outputs.pl_changed == 'True'
         uses: actions/download-artifact@v4
         with:
           name: zed_os_fpga_xsa
           path: vitis\
+
+      - name: Confirm XSA present (committed or freshly built)
+        shell: powershell
+        run: |
+          if (-not (Test-Path "vitis\zed_os_fpga.xsa")) {
+            Write-Error "vitis\zed_os_fpga.xsa not found — commit an XSA or trigger a PL rebuild"
+            exit 1
+          }
+          Write-Host "Using XSA: $((Get-Item 'vitis\zed_os_fpga.xsa').Length) bytes"
 
       - name: Run create_vitis_project.tcl
         shell: cmd
