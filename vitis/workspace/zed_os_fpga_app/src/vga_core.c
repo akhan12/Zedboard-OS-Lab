@@ -15,7 +15,7 @@ int color; // global, set by caller before drawing (BLUE/GREEN/RED/etc.)
 
 // Character cell shadow buffer: tracks what is displayed on screen.
 // Used by scroll() to avoid reading back from write-only AXI framebuffer.
-#define ROWS 25
+#define ROWS 30
 #define COLS 80
 static char cbuf[ROWS][COLS];
 
@@ -128,8 +128,8 @@ int kputc(char c) {
   }
   if (c == '\n') {
     row++;
-    if (row >= 25) {
-      row = 24;
+    if (row >= ROWS) {
+      row = ROWS - 1;
       scroll();
     }
     putcursor();
@@ -148,8 +148,8 @@ int kputc(char c) {
   if (col >= 80) {
     col = 0;
     row++;
-    if (row >= 25) {
-      row = 24;
+    if (row >= ROWS) {
+      row = ROWS - 1;
       scroll();
     }
   }
