@@ -1,0 +1,20 @@
+{
+  "configurations": [
+    {
+      "name": "Zedboard",
+      "includePath": [
+        "${workspaceFolder}/vitis/workspace/zed_os_fpga_app/src",
+        "${workspaceFolder}/vitis/workspace/zed_vga_test/src/app",
+        "${workspaceFolder}/vitis/workspace/zed_vga_test/src/drv",
+        "${workspaceFolder}/vitis/workspace/zed_vga_test/src/include",
+        "${workspaceFolder}/vitis/workspace/zed_os_fpga_platform/export/zed_os_fpga_platform/sw/zed_os_fpga_platform/standalone_domain/bspinclude/include"
+      ],
+      "defines": ["PLATFORM_ZYNQ"],
+      "compilerPath": "",
+      "cStandard": "c11",
+      "cppStandard": "c++14",
+      "intelliSenseMode": "gcc-arm"
+    }
+  ],
+  "version": 4
+}
