@@ -130,14 +130,4 @@ jobs:
         if: always()
         shell: powershell
         run: |
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_os_fpga_platform"
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_vga_test_system"
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_vga_test\Debug"
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_vga_test\Release"
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_vga_test\_ide"
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_os_fpga_app_system"
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_os_fpga_app\Debug"
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_os_fpga_app\Release"
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_os_fpga_app\_ide"
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\.metadata"
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "zed_os_fpga"
+          Get-ChildItem -Path . -Exclude .git | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
