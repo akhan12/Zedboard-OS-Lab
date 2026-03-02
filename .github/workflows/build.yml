@@ -13,38 +13,54 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  vivado-build:
-    name: Vivado — Synthesis, Implementation & XSA Export
+  build:
+    name: Build — Vivado (if PL changed) + Vitis
     runs-on: self-hosted
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need history to diff against base
 
-      - name: Run build.tcl (synth → impl → bitstream → XSA)
+      # ---------------------------------------------------------------
+      # Detect whether PL-side files changed
+      # ---------------------------------------------------------------
+      - name: Check for PL-side file changes
+        id: pl_check
+        shell: powershell
+        run: |
+          if ("${{ github.event_name }}" -eq "pull_request") {
+            $base = "origin/${{ github.base_ref }}"
+          } else {
+            $base = "${{ github.event.before }}"
+          }
+          $changed = git diff --name-only $base HEAD
+          Write-Host "Changed files:`n$changed"
+          $pl_patterns = @("fpga_ip/", "constraints/", "build.tcl", "create_project.tcl")
+          $pl_changed = $false
+          foreach ($file in $changed) {
+            foreach ($pattern in $pl_patterns) {
+              if ($file -like "*$pattern*") { $pl_changed = $true; break }
+            }
+            if ($pl_changed) { break }
+          }
+          Write-Host "pl_changed=$pl_changed"
+          echo "pl_changed=$pl_changed" >> $env:GITHUB_OUTPUT
+
+      # ---------------------------------------------------------------
+      # Vivado — only when PL-side files changed.
+      # build.tcl writes vitis/zed_os_fpga.xsa directly in the workspace.
+      # ---------------------------------------------------------------
+      - name: Vivado — Synthesis, Implementation & XSA Export
+        if: steps.pl_check.outputs.pl_changed == 'True'
         shell: cmd
         run: |
           "C:\Xilinx\Vivado\2022.1\bin\vivado.bat" -mode batch -source build.tcl -log vivado_build.log -journal vivado_build.jou
         timeout-minutes: 90
 
-      - name: Verify XSA was produced
-        shell: powershell
-        run: |
-          if (-not (Test-Path "vitis\zed_os_fpga.xsa")) {
-            Write-Error "vitis\zed_os_fpga.xsa not found — Vivado build failed"
-            exit 1
-          }
-          Write-Host "XSA found: $((Get-Item 'vitis\zed_os_fpga.xsa').Length) bytes"
-
-      - name: Upload XSA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: zed_os_fpga_xsa
-          path: vitis\zed_os_fpga.xsa
-          retention-days: 7
-
       - name: Upload Vivado logs on failure
-        if: failure()
+        if: failure() && steps.pl_check.outputs.pl_changed == 'True'
         uses: actions/upload-artifact@v4
         with:
           name: vivado-logs
@@ -53,22 +69,22 @@ jobs:
             vivado_build.jou
           retention-days: 7
 
-  vitis-build:
-    name: Vitis — Platform + zed_vga_test + zed_os_fpga_app
-    runs-on: self-hosted
-    needs: vivado-build
+      # ---------------------------------------------------------------
+      # Confirm XSA is present (committed in repo, or just built above)
+      # ---------------------------------------------------------------
+      - name: Confirm XSA present
+        shell: powershell
+        run: |
+          if (-not (Test-Path "vitis\zed_os_fpga.xsa")) {
+            Write-Error "vitis\zed_os_fpga.xsa not found — commit an XSA or add a PL-side change to trigger a rebuild"
+            exit 1
+          }
+          Write-Host "Using XSA: $((Get-Item 'vitis\zed_os_fpga.xsa').Length) bytes"
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download XSA from Vivado job
-        uses: actions/download-artifact@v4
-        with:
-          name: zed_os_fpga_xsa
-          path: vitis\
-
-      - name: Run create_vitis_project.tcl
+      # ---------------------------------------------------------------
+      # Vitis — always runs
+      # ---------------------------------------------------------------
+      - name: Vitis — Platform + zed_vga_test + zed_os_fpga_app
         shell: cmd
         run: |
           "C:\Xilinx\Vitis\2022.1\bin\xsct.bat" vitis\create_vitis_project.tcl > vitis_build.log 2>&1
@@ -114,8 +130,6 @@ jobs:
         if: always()
         shell: powershell
         run: |
-          # Remove generated artifacts so next run starts clean.
-          # Source files tracked in git are left untouched.
           Remove-Item -Force  -ErrorAction SilentlyContinue "vitis\zed_os_fpga.xsa"
           Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_os_fpga_platform"
           Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "vitis\workspace\zed_vga_test_system"
