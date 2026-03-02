@@ -16,6 +16,8 @@ jobs:
   build:
     name: Build — Vivado (if PL changed) + Vitis
     runs-on: self-hosted
+    needs: check-pl-changes
+    if: needs.check-pl-changes.outputs.pl_changed == 'True'
 
     steps:
       - name: Checkout
