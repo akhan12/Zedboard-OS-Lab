@@ -312,6 +312,7 @@ int timer1_task() {
   printf("timer1_task %d start\n", running->pid);
   while (1) {
     pause(t);
+    color = CYAN;
     printf("proc%d run once in %d seconds\n", running->pid, t);
   }
 }
@@ -321,6 +322,7 @@ int timer2_task() {
   printf("timer2_task %d start\n", running->pid);
   while (1) {
     pause(t);
+    color = RED;
     printf("proc%d run once in %d seconds\n", running->pid, t);
   }
 }
@@ -328,7 +330,8 @@ int timer2_task() {
 int producer() {
   char *cp;
   char line[128];
-
+  int oldcolor;
+  color = YELLOW;
   while (1) {
     ugets(line);
     cp = line;
@@ -347,12 +350,16 @@ int producer() {
       }
       V(&full);
     }
+    color = oldcolor;
   }
 }
 
 int consumer() {
+  int oldcolor;
   char c;
   while (1) {
+	oldcolor=color;
+	color = GREEN;
     P(&full);
     P(&mutex);
     c = prbuf[tail++];
@@ -367,6 +374,7 @@ int consumer() {
     }
     kprintf("c = %c\n", c);
     V(&empty);
+    color = oldcolor;
   }
 }
 
@@ -375,7 +383,7 @@ int consumer() {
 // ---------------------------------------------------------------------------
 int main() {
   int Status;
-
+  color = WHITE;
   fbuf_init();
 
   Status = SetupInterruptSystem(XPAR_SCUGIC_SINGLE_DEVICE_ID, &InterruptController);
