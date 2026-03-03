@@ -213,7 +213,6 @@ int uart_init() {
   if (Status != XST_SUCCESS)
     return XST_FAILURE;
 
-  XScuGic_Enable(&InterruptController, UART_INT_IRQ_ID);
   XUartPs_SetHandler(&Uart_Ps, (XUartPs_Handler)Handler, &Uart_Ps);
 
   u32 IntrMask = XUARTPS_IXR_TOUT | XUARTPS_IXR_PARITY | XUARTPS_IXR_FRAMING |
@@ -231,12 +230,13 @@ int uart_init() {
   up->outroom.queue = 0;
   up->txon = 0;
 
+  XUartPs_SetFifoThreshold(&Uart_Ps, 1);
   XScuGic_Enable(&InterruptController, UART_INT_IRQ_ID);
   XUartPs_SetRecvTimeout(&Uart_Ps, 8);
   return XST_SUCCESS;
 }
 
-void uputc(char *s) { outbyte(*s); }
+void uputc(char c) { outbyte(c); }
 
 char ugetc(UART *up) {
   char c;
@@ -247,11 +247,24 @@ char ugetc(UART *up) {
 }
 
 int ugets(char *s) {
-  while ((*s = (char)ugetc(&uart_buffer)) != '\r') {
-    uputc(s);
-    s++;
+  char c;
+  char *p = s;
+  while ((c = ugetc(&uart_buffer)) != '\r') {
+    if (c == '\b' || c == 0x7f) {
+      if (p > s) {
+        p--;
+        uputc('\b');
+        uputc(' ');
+        uputc('\b');
+      }
+    } else {
+      *p++ = c;
+      uputc(c);
+    }
   }
-  *s = 0;
+  *p = 0;
+  uputc('\r');
+  return p - s;
 }
 
 void Handler(void *CallBackRef, u32 Event, unsigned int EventData) {
@@ -263,16 +276,15 @@ void Handler(void *CallBackRef, u32 Event, unsigned int EventData) {
 
   if (Event == XUARTPS_EVENT_RECV_DATA || Event == XUARTPS_EVENT_RECV_TOUT) {
     if (EventData != 0) {
-      for (int i = uart_buffer.inhead; i < uart_buffer.inhead + (int)EventData;
-           i++) {
-        if (uart_buffer.inbuf[i] == '\r' && single_line == 0) {
+      for (unsigned int i = 0; i < EventData; i++) {
+        int idx = (uart_buffer.inhead + i) % SBUFSIZE;
+        if (uart_buffer.inbuf[idx] == '\r' && single_line == 0) {
           V_int(&uart_buffer.uline);
           single_line++;
         }
+        V_int(&uart_buffer.indata);
       }
-      V_int(&uart_buffer.indata);
-      uart_buffer.inhead += EventData;
-      uart_buffer.inhead %= SBUFSIZE;
+      uart_buffer.inhead = (uart_buffer.inhead + EventData) % SBUFSIZE;
       XUartPs_Recv(&Uart_Ps, &uart_buffer.inbuf[uart_buffer.inhead], 1u);
     }
   }
@@ -376,7 +388,6 @@ int main() {
 
   kprintf("Welcome to Wanix in ARM\n");
   uart_init();
-  XUartPs_Recv(&Uart_Ps, u_buffer, 1);
 
   head = tail = 0;
   full.value = 0;  full.queue = 0;
