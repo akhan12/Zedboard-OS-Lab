@@ -43,3 +43,4 @@ vitis/workspace/zed_os_fpga_app/src/lscript.ld
 
 # Random
 vitis/*.bit
+.cache/
