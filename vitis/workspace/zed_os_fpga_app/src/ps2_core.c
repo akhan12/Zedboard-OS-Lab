@@ -141,17 +141,22 @@ int kgetc(void) {
   return c;
 }
 
+// kgets: read a line of keyboard input into buffer s.
+// Blocks until Enter ('\r') is pressed.
+// Handles backspace by decrementing the write pointer (won't go before start).
+// Null-terminates the string on Enter.
+// Returns the number of characters stored (not counting the null terminator).
 int kgets(char *s) {
   char c;
   char *start = s;
   while ((c = (char)kgetc()) != '\r') {
-    if (c == '\b') {
+    if (c == '\b') {        // backspace: step back one character if possible
       if (s > start)
         s--;
       continue;
     }
-    *s++ = c;
+    *s++ = c;               // store character and advance pointer
   }
-  *s = 0;
-  return s - start;
+  *s = 0;                   // null-terminate on Enter
+  return s - start;         // return length of string
 }

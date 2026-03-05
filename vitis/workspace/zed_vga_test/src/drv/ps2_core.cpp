@@ -71,7 +71,7 @@ int Ps2Core::init() {
   /* send reset 0xff  */
   // debug("ps2 reset: write command ", 0, 0);
   tx_byte(0xff);
-  sleep(2); // 200 ms not long enough for USB keyboard
+  sleep(2); // 200 ms not long enough for PS/2 keyboard
   /* check 0xfa 0xaa */
   if (rx_byte() != 0xfa) {
     return (-1); // no response or wrong response
