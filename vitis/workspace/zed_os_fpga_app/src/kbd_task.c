@@ -29,6 +29,13 @@ void kbd_task(void) {
     }
 
     // Echo the character to the VGA screen.
-    kputc((char)c);
+    // Enter produces '\r' from the scan table; map it to '\n' so kputc
+    // advances the row, then also send '\r' to reset the column.
+    if (c == '\r') {
+      kputc('\n');
+      kputc('\r');
+    } else {
+      kputc((char)c);
+    }
   }
 }

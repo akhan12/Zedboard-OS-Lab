@@ -307,9 +307,9 @@ int pause(int t) {
   tswitch();
 }
 
-int timer1_task() {
+int delayed1_task() {
   int t = 5;
-  printf("timer1_task %d start\n", running->pid);
+  printf("delayed1_task %d start\n", running->pid);
   while (1) {
     pause(t);
     color = CYAN;
@@ -317,9 +317,9 @@ int timer1_task() {
   }
 }
 
-int timer2_task() {
+int delayed2_task() {
   int t = 7;
-  printf("timer2_task %d start\n", running->pid);
+  printf("delayed2_task %d start\n", running->pid);
   while (1) {
     pause(t);
     color = RED;
@@ -394,7 +394,7 @@ int main() {
   if (Status != XST_SUCCESS)
     return Status;
 
-  kprintf("Welcome to Wanix in ARM\n");
+  kprintf("Welcome to ZedOS\n");
   uart_init();
 
   head = tail = 0;
@@ -405,8 +405,8 @@ int main() {
   init();
 
   kprintf("P0 kfork tasks\n");
-  kfork((int)timer1_task, 1);
-  kfork((int)timer2_task, 1);
+  kfork((int)delayed1_task, 1);
+  kfork((int)delayed2_task, 1);
   kfork((int)producer, 2);
   kfork((int)consumer, 2);
   kfork((int)producer, 3);
