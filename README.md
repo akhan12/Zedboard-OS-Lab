@@ -89,38 +89,61 @@ This creates the project only — synthesis and implementation must be run manua
 
 ## Updating create_project.tcl After Vivado Changes
 
-When you make changes in Vivado and want to reflect them back into source control:
+When you make changes in Vivado (block design, IP, constraints) and want to commit them:
 
-1. In Vivado, go to **File → Project → Write Project to Tcl**
-2. Set the output filename to something like `zed_os_fpga.tcl` (not `create_project.tcl` directly)
-3. Enable **"Recreate Block Designs using Tcl"**
-4. After generating, apply the following fixes before copying changes into `create_project.tcl`:
+**Step 1 — Export from the Vivado TCL console:**
+```tcl
+write_project_tcl -force \
+  -paths_relative_to ./ \
+  -origin_dir_override "." \
+  recreate_project.tcl
+```
+This exports to `recreate_project.tcl` in the repo root with relative IP paths.
 
-   **Fix 1 — `origin_dir` (line ~60):** Change
-   ```tcl
-   set origin_dir "."
-   ```
-   to
-   ```tcl
-   set origin_dir [file dirname [info script]]
-   ```
+**Step 2 — Apply the following fixes to `recreate_project.tcl`, then copy it to `create_project.tcl` and delete `recreate_project.tcl`.**
 
-   **Fix 2 — XDC path in `checkRequiredFiles` (line ~42):** Change
-   ```tcl
-   "[file normalize "$origin_dir/zed_os_fpga/zed_os_fpga.srcs/constrs_1/imports/constraints/Zedboard-Master.xdc"]"
-   ```
-   to
-   ```tcl
-   "[file normalize "$origin_dir/constraints/Zedboard-Master.xdc"]"
-   ```
+Vivado's export has several issues that must be corrected for the script to work from a clean checkout:
 
-   **Fix 3 — XDC import path (line ~206):** Change
-   ```tcl
-   set file "[file normalize ${origin_dir}/zed_os_fpga/zed_os_fpga.srcs/constrs_1/imports/constraints/Zedboard-Master.xdc]"
-   ```
-   to
-   ```tcl
-   set file "[file normalize ${origin_dir}/constraints/Zedboard-Master.xdc]"
-   ```
+**Fix 1 — `origin_dir`:** Change
+```tcl
+set origin_dir "."
+```
+to
+```tcl
+set origin_dir [file dirname [info script]]
+```
 
-5. For block design changes, copy only the `cr_bd_design_1` proc body from the regenerated file into `create_project.tcl` — the rest of the boilerplate (project setup, filesets, runs) rarely needs updating.
+**Fix 2 — `script_file` variable:** Change
+```tcl
+set script_file "recreate_project.tcl"
+```
+to
+```tcl
+set script_file "create_project.tcl"
+```
+
+**Fix 3 — `checkRequiredFiles`: XDC and `.dcp` entries:** Replace the `files` list with only the XDC:
+```tcl
+set files [list \
+ "[file normalize "$origin_dir/constraints/Zedboard-Master.xdc"]"\
+]
+```
+Remove any `.dcp` entry — it references a non-existent incremental synthesis checkpoint.
+
+**Fix 4 — `checkRequiredFiles`: IP paths:** Vivado generates double-nested `file normalize` for IP paths (a known export bug). Replace with single normalize:
+```tcl
+set paths [list \
+   [file normalize "$origin_dir/fpga_ip/ps2_controller_1.0"] \
+   [file normalize "$origin_dir/fpga_ip/BasicAXIVideoController_1.0"] \
+   [file normalize "$origin_dir/fpga_ip/VGA_DMA_STATIC_1.0"] \
+]
+```
+
+**Fix 5 — XDC import path:** Find the `add_files`/`import_files` line for the XDC and replace the project-internal absolute path:
+```tcl
+set file "[file normalize ${origin_dir}/constraints/Zedboard-Master.xdc]"
+```
+
+**Fix 6 — `ip_repo_paths` property:** Ensure it lists only the three `fpga_ip/` directories (no `ip_repo/` entries).
+
+**Fix 7 — `utils_1` fileset and `synth_1` incremental checkpoint:** Remove the `import_files` block for `design_1_wrapper.dcp`, the `set_property netlist_only` line, and the `set_property incremental_checkpoint` / `auto_incremental_checkpoint` lines from the `synth_1` run — these all reference the non-existent `.dcp` file.

@@ -15,8 +15,9 @@ int color; // global, set by caller before drawing (BLUE/GREEN/RED/etc.)
 
 // Character cell shadow buffer: tracks what is displayed on screen.
 // Used by scroll() to avoid reading back from write-only AXI framebuffer.
-#define ROWS 45   // 720  / 16 px per char
-#define COLS 160  // 1280 /  8 px per char
+#define ROWS 45         // 720  / 16 px per char
+#define COLS 160        // 1280 /  8 px per char
+#define BANNER_ROWS 8   // rows reserved for the boot banner (never scrolled)
 static char cbuf[ROWS][COLS];
 static int  colbuf[ROWS][COLS]; // per-cell colour index
 
@@ -106,8 +107,9 @@ static void undchar(unsigned char c, int x, int y) {
 
 static void scroll(void) {
   int r, c;
-  // Shift character and colour shadows up one row
-  for (r = 0; r < ROWS - 1; r++)
+  // Shift character and colour shadows up one row within the scroll region.
+  // Rows 0..BANNER_ROWS-1 are frozen (boot banner) and never touched.
+  for (r = BANNER_ROWS; r < ROWS - 1; r++)
     for (c = 0; c < COLS; c++) {
       cbuf[r][c]   = cbuf[r + 1][c];
       colbuf[r][c] = colbuf[r + 1][c];
@@ -117,8 +119,8 @@ static void scroll(void) {
     cbuf[ROWS - 1][c]   = 0;
     colbuf[ROWS - 1][c] = WHITE;
   }
-  // Redraw all rows using per-cell colours
-  for (r = 0; r < ROWS; r++)
+  // Redraw only the scroll region
+  for (r = BANNER_ROWS; r < ROWS; r++)
     for (c = 0; c < COLS; c++)
       dchar_col(cbuf[r][c], c * 8, r * 16, colbuf[r][c]);
 }
@@ -171,7 +173,7 @@ int kputc(char c) {
   }
   kpchar(c, row, col);
   col++;
-  if (col >= 80) {
+  if (col >= COLS) {
     col = 0;
     row++;
     if (row >= ROWS) {

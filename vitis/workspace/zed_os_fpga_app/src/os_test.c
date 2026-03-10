@@ -390,10 +390,10 @@ int main() {
   // first-level MMU sections). The frame buffer is 4 MB (0x1FB00000-0x1FEFFFFF).
   // This ensures CPU pixel writes reach DDR before the DMA engine fetches them.
   // Region must match VIDEO_FRAME_BASE / VIDEO_FB in vga_core.h and lscript.ld.
-  Xil_SetTlbAttributes(0x1FB00000U, STRONG_ORDERED);
-  Xil_SetTlbAttributes(0x1FC00000U, STRONG_ORDERED);
-  Xil_SetTlbAttributes(0x1FD00000U, STRONG_ORDERED);
-  Xil_SetTlbAttributes(0x1FE00000U, STRONG_ORDERED);
+  Xil_SetTlbAttributes(0x1FB00000U, NORM_NONCACHE);
+  Xil_SetTlbAttributes(0x1FC00000U, NORM_NONCACHE);
+  Xil_SetTlbAttributes(0x1FD00000U, NORM_NONCACHE);
+  Xil_SetTlbAttributes(0x1FE00000U, NORM_NONCACHE);
 
   color = WHITE;
   fbuf_init();
@@ -406,7 +406,23 @@ int main() {
   if (Status != XST_SUCCESS)
     return Status;
 
-  kprintf("Welcome to ZedOS\n");
+  /* -----------------------------------------------------------------------
+   * Boot banner — drawn once at the top of the framebuffer console.
+   * ASCII art is 7 lines; one blank line follows so shell output starts
+   * at row 8 (out of 45), leaving the logo permanently visible above.
+   * ----------------------------------------------------------------------- */
+  color = CYAN;
+  kprintf(" ______          _  ___  ____\n");
+  kprintf("|___  /  ___  __| |/ _ \\/ ___|\n");
+  kprintf("   / /  / _ \\/ _` | | | \\___ \\\n");
+  kprintf("  / /__|  __/ (_| | |_| |___) |\n");
+  kprintf(" /_____|\\___|\\__,_|\\___/|____/\n");
+  color = WHITE;
+  kprintf(" Zynq Embedded OS  |  Zedboard  |  1280x720 DMA VGA\n");
+  color = CYAN;
+  kprintf(" --------------------------------------------------------\n");
+  color = WHITE;
+  kprintf("\n");
   uart_init();
 
   head = tail = 0;
