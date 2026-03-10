@@ -1,4 +1,5 @@
 #include "xil_exception.h"
+#include "xil_mmu.h"
 #include "xil_printf.h"
 #include "xparameters.h"
 #include "xscugic.h"
@@ -383,6 +384,17 @@ int consumer() {
 // ---------------------------------------------------------------------------
 int main() {
   int Status;
+
+  // Mark the DMA frame buffer region as strongly-ordered (non-cacheable,
+  // non-bufferable). Xil_SetTlbAttributes covers 1 MB per call (Cortex-A9
+  // first-level MMU sections). The frame buffer is 4 MB (0x1FB00000-0x1FEFFFFF).
+  // This ensures CPU pixel writes reach DDR before the DMA engine fetches them.
+  // Region must match VIDEO_FRAME_BASE / VIDEO_FB in vga_core.h and lscript.ld.
+  Xil_SetTlbAttributes(0x1FB00000U, STRONG_ORDERED);
+  Xil_SetTlbAttributes(0x1FC00000U, STRONG_ORDERED);
+  Xil_SetTlbAttributes(0x1FD00000U, STRONG_ORDERED);
+  Xil_SetTlbAttributes(0x1FE00000U, STRONG_ORDERED);
+
   color = WHITE;
   fbuf_init();
 
