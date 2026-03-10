@@ -228,19 +228,7 @@ set_property -name "top_lib" -value "xil_defaultlib" -objects $obj
 
 # Set 'utils_1' fileset object
 set obj [get_filesets utils_1]
-# Import local files from the original project
-set files [list \
- [file normalize "${origin_dir}/zed_os_fpga/zed_os_fpga.srcs/utils_1/imports/synth_1/design_1_wrapper.dcp" ]\
-]
-set imported_files [import_files -fileset utils_1 $files]
-
-# Set 'utils_1' fileset file properties for remote files
-# None
-
-# Set 'utils_1' fileset file properties for local files
-set file "synth_1/design_1_wrapper.dcp"
-set file_obj [get_files -of_objects [get_filesets utils_1] [list "*$file"]]
-set_property -name "netlist_only" -value "0" -objects $file_obj
+# No local files to import for utils_1
 
 
 # Set 'utils_1' fileset properties
@@ -897,8 +885,6 @@ if { $obj != "" } {
 
 }
 set obj [get_runs synth_1]
-set_property -name "incremental_checkpoint" -value "$proj_dir/zed_os_fpga.srcs/utils_1/imports/synth_1/design_1_wrapper.dcp" -objects $obj
-set_property -name "auto_incremental_checkpoint" -value "1" -objects $obj
 set_property -name "strategy" -value "Vivado Synthesis Defaults" -objects $obj
 
 # set the current synth run
