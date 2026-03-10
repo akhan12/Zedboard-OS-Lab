@@ -406,7 +406,23 @@ int main() {
   if (Status != XST_SUCCESS)
     return Status;
 
-  kprintf("Welcome to ZedOS\n");
+  /* -----------------------------------------------------------------------
+   * Boot banner — drawn once at the top of the framebuffer console.
+   * ASCII art is 7 lines; one blank line follows so shell output starts
+   * at row 8 (out of 45), leaving the logo permanently visible above.
+   * ----------------------------------------------------------------------- */
+  color = CYAN;
+  kprintf(" ______          _  ___  ____\n");
+  kprintf("|___  /  ___  __| |/ _ \\/ ___|\n");
+  kprintf("   / /  / _ \\/ _` | | | \\___ \\\n");
+  kprintf("  / /__|  __/ (_| | |_| |___) |\n");
+  kprintf(" /_____|\\___|\\__,_|\\___/|____/\n");
+  color = WHITE;
+  kprintf(" Zynq Embedded OS  |  Zedboard  |  1280x720 DMA VGA\n");
+  color = CYAN;
+  kprintf(" --------------------------------------------------------\n");
+  color = WHITE;
+  kprintf("\n");
   uart_init();
 
   head = tail = 0;
