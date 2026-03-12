@@ -1,0 +1,134 @@
+# zed_os_fpga_app
+
+Bare-metal OS application for the Zedboard. Ports the K.C. Wang
+"Embedded and Real-Time Operating Systems" kernel (originally targeting QEMU)
+to the Zynq-7000, adding real hardware drivers for VGA output and PS/2 keyboard input.
+
+---
+
+## VGA Driver — Migration to DMA 720p
+
+The VGA driver (`src/vga_core.c` / `src/vga_core.h`) was originally written for a
+custom 640×480 BRAM-based AXI video IP (`BasicAXIVideoController_1.0`). It has been
+updated to target the new `VGA_DMA_STATIC_1.0` IP, which outputs 1280×720 @ 60 Hz by
+DMA-streaming a DDR frame buffer over the HP0 AXI port.
+
+### What changed
+
+#### 1. Frame buffer location — BRAM → DDR
+
+The old IP kept a pixel array inside FPGA BRAM; the CPU wrote pixels directly to an
+AXI address inside the PL. The new IP reads pixels from a region of DDR that the CPU
+writes as plain memory.
+
+| | Old | New |
+|---|---|---|
+| Frame buffer location | PL BRAM via `0x40400000` | DDR at `0x1FB00000` |
+| Frame buffer size | 640×480 × 4 B = 1.2 MB | 1280×720 × 4 B = 3.7 MB (4 MB reserved) |
+| Pixel format | 9-bit packed RGB (`RRRGGGGBBB`) | 12-bit RGB444 (`bits[11:0]`, 1 word/pixel) |
+| Resolution | 640 × 480 | 1280 × 720 |
+
+`VIDEO_FRAME_BASE` in `vga_core.h` changed from `0x40400000` to `0x1FB00000`.
+`fb_write(offset, data)` still writes one 32-bit word per pixel; no stride change.
+
+#### 2. Colour table — 9-bit → RGB444
+
+The old colour table used the 9-bit `RRRGGGGBBB` packed format of the old IP.
+It has been updated to 12-bit RGB444 (`R=[11:8]`, `G=[7:4]`, `B=[3:0]`):
+
+| Colour | Old (`RRRGGGGBBB`) | New (RGB444) |
+|--------|-------------------|--------------|
+| BLUE   | `0x007`           | `0x00F`      |
+| GREEN  | `0x038`           | `0x0F0`      |
+| RED    | `0x1C0`           | `0xF00`      |
+| CYAN   | `0x03F`           | `0x0FF`      |
+| YELLOW | `0x1F8`           | `0xFF0`      |
+| PURPLE | `0x1C7`           | `0xF0F`      |
+| WHITE  | `0x1FF`           | `0xFFF`      |
+
+#### 3. Character grid — 80×30 → 160×45
+
+With an 8×16 pixel font and the new resolution:
+
+```
+COLS = 1280 / 8  = 160
+ROWS =  720 / 16 =  45
+```
+
+The `cbuf` and `colbuf` shadow buffers (used to redraw during scroll without
+reading back from the frame buffer) resize accordingly.
+
+#### 4. Hardware initialisation in `fbuf_init()`
+
+The old IP required no explicit enable — writing a pixel to the BRAM address was
+sufficient. The new IP has an AXI4-Lite config slave (`0x43C00000`) that must be
+programmed before the DMA will produce any output:
+
+```c
+volatile unsigned int *cfg = (volatile unsigned int *)VGA_DMA_CFG_BASE;
+cfg[0] = VIDEO_FRAME_BASE;  // reg 0: tell DMA where the frame buffer is
+cfg[1] = 1u;                // reg 1: dma_enable = 1
+```
+
+`fbuf_init()` clears the entire frame buffer to black first, then programs these
+registers, ensuring the first displayed frame is clean.
+
+#### 5. MMU cache attributes — strongly-ordered frame buffer region
+
+Because the frame buffer is shared between the CPU (writes) and the DMA engine
+(reads via HP0), the 4 MB DDR region must be marked **strongly-ordered** so that
+CPU stores drain to DDR before the DMA fetches them. This is done in `os_test.c`
+before calling `fbuf_init()`:
+
+```c
+#include "xil_mmu.h"
+
+// Cortex-A9 Xil_SetTlbAttributes covers one 1 MB MMU section per call.
+// Four calls cover the full 4 MB frame buffer (0x1FB00000–0x1FEFFFFF).
+Xil_SetTlbAttributes(0x1FB00000U, STRONG_ORDERED);
+Xil_SetTlbAttributes(0x1FC00000U, STRONG_ORDERED);
+Xil_SetTlbAttributes(0x1FD00000U, STRONG_ORDERED);
+Xil_SetTlbAttributes(0x1FE00000U, STRONG_ORDERED);
+```
+
+`STRONG_ORDERED` (`0xC02`) is used rather than `NORM_NONCACHE` (`0x11DE2`).
+Normal non-cacheable memory still permits speculative and out-of-order accesses;
+strongly-ordered memory does not, which is required for correctness with a
+DMA master that has no software-visible coherency mechanism.
+
+#### 6. Linker script — frame buffer reservation
+
+`src/lscript.ld` was updated to carve the frame buffer out of the program address
+space so the linker cannot place code or data there:
+
+```ld
+MEMORY
+{
+   ps7_ddr_0 : ORIGIN = 0x100000,   LENGTH = 0x1FB00000  /* ~507 MB for program */
+   VIDEO_FB  : ORIGIN = 0x1FB00000, LENGTH = 0x400000    /* 4 MB frame buffer   */
+   ...
+}
+
+.video_fb (NOLOAD) : {
+   . = ALIGN(4096);
+   _video_fb_start = .;
+   . += 0x400000;
+   _video_fb_end = .;
+} > VIDEO_FB
+```
+
+The `NOLOAD` attribute means no data is placed in this section at link time; it
+exists only to reserve the address range.
+
+---
+
+## Hardware Requirements
+
+| IP | Address | Notes |
+|----|---------|-------|
+| `VGA_DMA_STATIC_1.0` config (S00_AXI) | `0x43C00000` | AXI4-Lite, GP0 port |
+| Frame buffer (DDR)                     | `0x1FB00000` | 4 MB, HP0 port |
+| `ps2_controller_1.0`                   | See `chu_io_map.h` | PS/2 keyboard |
+
+The pixel clock (74.25 MHz) is generated by a Clocking Wizard instance in the
+block design and is separate from the AXI clock (150 MHz on HP0).
